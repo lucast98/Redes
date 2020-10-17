@@ -11,41 +11,26 @@
 
 #define MESSAGE_BUFFER 500
 #define USERNAME_BUFFER 10
-#define MAX_USERS 10
-#define PORT 3007
+#define PORT 3018
 
-struct msgHdr{
+struct msgHeader{
     int fd;  //descritor de socket
     char user[USERNAME_BUFFER]; //nome de usuario
     ushort opt;  // 0 = entrou no chat, 1 = saiu do chat e 2 = enviar mensagem
     ushort onLineNum;  // qtd de usuarios online
 };
 
-struct msgHdr *sendMsgHdr, *recvMsgHdr;
+struct msgHeader *sendMsg, *receiveMsg;
 int qtdOn = 0; //quantidade de usuarios online no servidor
 int socket_fd; //descritor do socket
-int clients[MAX_USERS];
-char sendbuf[MESSAGE_BUFFER];
-char recvbuf[MESSAGE_BUFFER];
+int clients[10];
+char sendBuffer[MESSAGE_BUFFER];
+char receiveBuffer[MESSAGE_BUFFER];
 
 
 /** Função a ser chamada antes de um exit, que fechará o socket */
 void checkEnd(){
     close(socket_fd);
-    //pthread_exit(NULL);
-}
-
-void receiveMessage(int fd){
-    for(int i = 0; i < (qtdOn+1); i++){
-        if(clients[i] == fd){
-            for(;i < qtdOn; i++)
-                clients[i] = clients[i+1];
-            if (qtdOn != 0)
-                printf("Usuarios conectados: \n");
-            for(int j = 0; j < qtdOn; j++)
-                printf("ID: %d\n", clients[j]);
-        }
-    }
 }
 
 /** Função para enviar a mensagem para os demais clientes */
@@ -65,25 +50,27 @@ void *receive(void *arg){
     int fd = *(int *)arg; //converte para int
 
     while(1){
-        if(recv(fd, recvbuf, MESSAGE_BUFFER, 0) == -1){
+        if(recv(fd, receiveBuffer, MESSAGE_BUFFER, 0) == -1){
             printf("Erro: %s\n", strerror(errno));
             close(fd);
             exit(1);
         }
-        recvMsgHdr = (struct msgHdr *)recvbuf;
-        recvMsgHdr->fd = fd;
-        if(recvMsgHdr->opt == 1){
+        receiveMsg = (struct msgHeader *)receiveBuffer;
+        receiveMsg->fd = fd;
+        if(receiveMsg->opt == 1){
             qtdOn--;
-            recvMsgHdr->onLineNum = qtdOn;
-            // Move the left socket descriptor away from the online list array
-            receiveMessage(fd);
+            receiveMsg->onLineNum = qtdOn;
             printf("Usuario com ID %d desconectou.\n", fd);
-            messageClient(recvbuf, fd);
+            messageClient(receiveBuffer, fd);
             close(fd);
+            /*if(qtdOn == 0){
+                atexit(checkEnd);
+                exit(1);
+            }*/
             return NULL;
         }
-        // Send this user's message to other users
-        messageClient(recvbuf, fd);
+        //Manda mensagem para os outros clientes
+        messageClient(receiveBuffer, fd);
     }
     close(fd);
     return NULL;
@@ -95,11 +82,13 @@ int main() {
     socklen_t length;
     pthread_t thread;
 
+    //printf("%d", sizeof(clients));
+
     socket_fd = socket(PF_INET, SOCK_STREAM, 0);
 
     //verifica se o socket foi criado com sucesso
     if(socket_fd == -1){
-        printf("Erro1: %s.\n", strerror(errno));
+        printf("Erro: %s.\n", strerror(errno));
         atexit(checkEnd);
         exit(1);
     }
@@ -116,17 +105,18 @@ int main() {
     }
 
     //verifica se houve erro no listen
-    if(listen(socket_fd, MAX_USERS) == -1){
+    if(listen(socket_fd, 100) == -1){
         printf("Erro - Listen: %s\n.", strerror(errno));
         atexit(checkEnd);
         exit(1);
     }
+    
     printf("Porta conectada: %d\n", port);
     printf("Esperando...\n");
 
     while(1){
         if((clientFD = accept(socket_fd, (struct sockaddr *)&cl_addr, &length)) == 0){
-            printf("Erro: %s\n", strerror(errno));
+            printf("Erro - Accept: %s\n", strerror(errno));
             continue;
         }
         else if (clientFD == -1){
@@ -134,22 +124,25 @@ int main() {
             atexit(checkEnd);
             exit(1);
         }
-        clients[qtdOn++] = clientFD; //armazena o descritor de socket num vetor
+
+        clients[qtdOn] = clientFD; //armazena o descritor de socket num vetor
+        qtdOn++;
+        //printf("%d\n", qtdOn);
         printf("Cliente com socket %d esta conectado!\n", clientFD);
 
-        sendMsgHdr = (struct msgHdr *)sendbuf; 
-        sendMsgHdr->fd = clientFD;
-        sendMsgHdr->opt = 0;
-        sendMsgHdr->onLineNum = qtdOn;
+        sendMsg = (struct msgHeader *)sendBuffer; 
+        sendMsg->fd = clientFD;
+        sendMsg->opt = 0;
+        sendMsg->onLineNum = qtdOn;
 
-        //avisa todos no servidor que um novo usario está conectado
+        //Avisa todos no servidor que um novo usario está conectado
         for(int i = 0; i < qtdOn; i++){
-            if(send(clients[i], sendbuf, MESSAGE_BUFFER, 0) == -1)
-                printf("Erro4: %s.\n", strerror(errno));
+            if(send(clients[i], sendBuffer, MESSAGE_BUFFER, 0) == -1)
+                printf("Erro - Send: %s.\n", strerror(errno));
         }
-        bzero(sendbuf, MESSAGE_BUFFER); //seta bytes para 0
+        bzero(sendBuffer, MESSAGE_BUFFER); //seta bytes para 0
 
-        // Create a receiving user message processing thread
+        //Thread para processar mensagens recebidas
         if(pthread_create(&thread, NULL, receive, &clientFD) != 0){
             printf("Erro ao criar thread.\n");
             atexit(checkEnd);
