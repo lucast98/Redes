@@ -8,16 +8,18 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <pthread.h>
+#include "forca_biblio.h"
 
 #define MESSAGE_BUFFER 500
 #define USERNAME_BUFFER 10
-#define PORT 3018
+#define PORT 3020
 
 struct msgHeader{
     int fd;  //descritor de socket
     char user[USERNAME_BUFFER]; //nome de usuario
-    ushort opt;  // 0 = entrou no chat, 1 = saiu do chat e 2 = enviar mensagem
-    ushort onLineNum;  // qtd de usuarios online
+    char word[MAX_WORD]; //palavra da forca
+    int opt;  // 0 = entrou no chat, 1 = saiu do chat, 2 = enviar mensagem e 3 = jogar
+    int onLineNum;  //qtd de usuarios online
 };
 
 struct msgHeader *sendMsg, *receiveMsg;
@@ -69,8 +71,15 @@ void *receive(void *arg){
             }*/
             return NULL;
         }
-        //Manda mensagem para os outros clientes
-        messageClient(receiveBuffer, fd);
+        else if (receiveMsg->opt == 2){
+            //Manda mensagem para os outros clientes
+            messageClient(receiveBuffer, fd);
+        }
+        else if (receiveMsg->opt == 3){
+            printf("oi\n");
+            messageClient(receiveBuffer, fd);
+        }
+
     }
     close(fd);
     return NULL;
