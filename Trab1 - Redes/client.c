@@ -12,7 +12,7 @@
 
 #define MESSAGE_BUFFER 500
 #define USERNAME_BUFFER 10
-#define PORT 3020
+#define PORT 3024
 
 char sendBuffer[MESSAGE_BUFFER];
 char receiveBuffer[MESSAGE_BUFFER];
@@ -22,16 +22,19 @@ struct messageInfo{
     int fd; //descritor de socket
     char user[USERNAME_BUFFER]; //nome de usuario
     char word[MAX_WORD]; //palavra da forca
-    int opt; // 0 = entrou no chat, 1 = saiu do chat, 2 = enviar mensagem e 3 = jogar
+    int opt; // 0 = entrou no chat, 1 = saiu do chat, 2 = enviar mensagem, 3 = comecou o jogo e 4 = terminou o jogo
     int onLineNum; // qtd de usuarios online
 };
 struct messageInfo *sentMessage, *receivedMessage;
 
 int socket_fd;
+int gameOwner = 0; //0 = ele nao começou o jogo, 1 = comecou o jogo
+int isPlaying = 0; 
+char guessedWord[MAX_WORD];
 
-void getWord(char str[], char word[]){
+void getWord(char str[], char word[], int start){
     int i = 0;
-    for(int j = 6; j < strlen(str); j++){
+    for(int j = start; j < strlen(str); j++){
         word[i] = str[j];
         i++;
     }
@@ -71,16 +74,45 @@ void *receive(void *msg){
             atexit(checkEnd);
             exit(0);
         }else{
-            if(strncmp(sendBuffer + sizeof(struct messageInfo), "/play", 5) == 0){
-                getWord(sendBuffer + sizeof(struct messageInfo), sentMessage->word);
+            if(isPlaying == 0 && gameOwner == 0 && strncmp(sendBuffer + sizeof(struct messageInfo), "/play", 5) == 0){
+                getWord(sendBuffer + sizeof(struct messageInfo), sentMessage->word, 6);
                 printf("%s\n", sentMessage->word);
                 sentMessage->opt = 3; //jogar
+                gameOwner = 1;
                 printf("Jogar forca!\n");
             }else{
-                sentMessage->opt = 2; //envia mensagem para o servidor
-                printf("%s> ", username);
+                if(isPlaying == 1 && gameOwner == 0 && strncmp(sendBuffer + sizeof(struct messageInfo), "/guess", 6) == 0){
+                    getWord(sendBuffer + sizeof(struct messageInfo), sentMessage->word, 7);
+                    printf("%s\n", sentMessage->word);  
+                    if (check_letter(guessedWord, sentMessage->word[0]) == 1){
+                        printf("Acertou.\n");
+                        printf("Palavra: \n%s\n", secret_word);
+                        if(end_game()==1){
+                           printf("Ganhou!\n");
+                           isPlaying = 0;
+                           sentMessage->opt = 4;
+                        }else if(end_game()==2){
+                           printf("Perdeu!\n");
+                           isPlaying = 1;
+                        }
+                    }
+                    else{
+                        printf("Se deu mal\n");
+                        printf("Letras erradas: %s\n", wrong_letter);
+                        printf("Palavra: \n%s\n", secret_word);
+                    }
+                    printf("Você ainda pode errar %d vezes.\n",7-tries);
+                    printf("%s> ", username);
+                }else{
+                    if(gameOwner == 1 && strncmp(sendBuffer + sizeof(struct messageInfo), "/guess", 6) == 0)
+                        printf("Quem manda palavra nao joga\n");
+                    else{
+                        sentMessage->opt = 2; //envia mensagem para o servidor
+                        printf("%s> ", username);
+                    }
+                }
             }
-        } 
+        }
 
         if(send(socket_fd, sendBuffer, MESSAGE_BUFFER, 0) == -1)
             printf("Erro - Send: %s\n", strerror(errno));
@@ -145,8 +177,15 @@ int main(){
         else if(receivedMessage->opt == 3){
             printf("\nChamada para jogar forca, é isso, vai ter que jogar!\n");
             //inicia a forca
+            strcpy(guessedWord, receivedMessage->word);
             create_secret(strlen(receivedMessage->word));
             printf("%s\n", secret_word);
+            printf("%s> ", username);
+            isPlaying = 1;
+        }else{
+            printf("Acabou o jogo\n");
+            isPlaying = 0;
+            gameOwner = 0;
         }
         fflush(stdout);
     }

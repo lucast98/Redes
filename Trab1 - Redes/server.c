@@ -12,7 +12,7 @@
 
 #define MESSAGE_BUFFER 500
 #define USERNAME_BUFFER 10
-#define PORT 3020
+#define PORT 3024
 
 struct msgHeader{
     int fd;  //descritor de socket
@@ -76,7 +76,9 @@ void *receive(void *arg){
             messageClient(receiveBuffer, fd);
         }
         else if (receiveMsg->opt == 3){
-            printf("oi\n");
+            messageClient(receiveBuffer, fd);
+        }
+        else if (receiveMsg->opt == 4){
             messageClient(receiveBuffer, fd);
         }
 

@@ -65,6 +65,7 @@ int verify_word(char* word){
         }else return 0;
     }create_secret(i);
     return 1;
+    
 }
 
 //Verifica se a jogada foi correta
@@ -86,4 +87,17 @@ int check_letter(char* real_word, char letter){
         }wrong_letter[tries] = letter;
         tries++;
     }return flag;
+}
+
+//Verifica o status do jogo
+//return -1 -> caso não exista um jogo
+//return 2 -> caso o jogo tenha acabado (jogador perdeu)
+//return 1 -> caso o jogo tenha acabado (jogador venceu)
+//retunr 0 -> caso o jogo ainda esteja em andamento
+int end_game(){
+    if(secret_word == NULL) return -1;
+    if(tries == 7) return 2;
+    for(int i = 0; secret_word[i] != 0; i++){
+        if(secret_word[i] == '#') return 0;
+    }return 1;
 }

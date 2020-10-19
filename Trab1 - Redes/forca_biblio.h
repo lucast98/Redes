@@ -24,3 +24,6 @@ int verify_word(char*);
 
 //Verifica se a jogada foi correta
 int check_letter(char*, char);
+
+//Verifica o status do jogo
+int end_game();
