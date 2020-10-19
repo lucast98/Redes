@@ -14,7 +14,7 @@
 #define USERNAME_BUFFER 10
 #define PORT 3024
 
-struct msgHeader{
+struct messageInfo{
     int fd;  //descritor de socket
     char user[USERNAME_BUFFER]; //nome de usuario
     char word[MAX_WORD]; //palavra da forca
@@ -22,7 +22,7 @@ struct msgHeader{
     int onLineNum;  //qtd de usuarios online
 };
 
-struct msgHeader *sendMsg, *receiveMsg;
+struct messageInfo *sendMsg, *receiveMsg;
 int qtdOn = 0; //quantidade de usuarios online no servidor
 int socket_fd; //descritor do socket
 int clients[10];
@@ -47,7 +47,7 @@ void messageClient(char *buffer, int fd){
     bzero(buffer, MESSAGE_BUFFER);
 }
 
-// Receive client message thread
+/** Função que recebe a mensagem do cliente */
 void *receive(void *arg){
     int fd = *(int *)arg; //converte para int
 
@@ -57,7 +57,7 @@ void *receive(void *arg){
             close(fd);
             exit(1);
         }
-        receiveMsg = (struct msgHeader *)receiveBuffer;
+        receiveMsg = (struct messageInfo *)receiveBuffer;
         receiveMsg->fd = fd;
         if(receiveMsg->opt == 1){
             qtdOn--;
@@ -90,10 +90,8 @@ void *receive(void *arg){
 int main() {
     int port, clientFD;
     struct sockaddr_in address, cl_addr;
-    socklen_t length;
-    pthread_t thread;
-
-    //printf("%d", sizeof(clients));
+    socklen_t length; //tamanho do socket
+    pthread_t thread; //thread do servidor
 
     socket_fd = socket(PF_INET, SOCK_STREAM, 0);
 
@@ -141,7 +139,7 @@ int main() {
         //printf("%d\n", qtdOn);
         printf("Cliente com socket %d esta conectado!\n", clientFD);
 
-        sendMsg = (struct msgHeader *)sendBuffer; 
+        sendMsg = (struct messageInfo *)sendBuffer; 
         sendMsg->fd = clientFD;
         sendMsg->opt = 0;
         sendMsg->onLineNum = qtdOn;
