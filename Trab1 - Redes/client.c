@@ -75,41 +75,52 @@ void *receive(void *msg){
             exit(0);
         }else{
             if(isPlaying == 0 && gameOwner == 0 && strncmp(sendBuffer + sizeof(struct messageInfo), "/play", 5) == 0){
-                getWord(sendBuffer + sizeof(struct messageInfo), sentMessage->word, 6);
-                printf("%s\n", sentMessage->word);
-                sentMessage->opt = 3; //jogar
-                gameOwner = 1;
-                printf("Jogar forca!\n");
+                    getWord(sendBuffer + sizeof(struct messageInfo), sentMessage->word, 6);
+                    if(verify_word(sentMessage->word) == 1){
+                        sentMessage->opt = 3; //jogar
+                        gameOwner = 1;
+                        printf("Jogar forca!\n");
+                        printf("%s> ", username);
+                    }else
+                        printf("Digite um palavra valida\n");                            
             }else{
                 if(isPlaying == 1 && gameOwner == 0 && strncmp(sendBuffer + sizeof(struct messageInfo), "/guess", 6) == 0){
                     getWord(sendBuffer + sizeof(struct messageInfo), sentMessage->word, 7);
-                    printf("%s\n", sentMessage->word);  
-                    if (check_letter(guessedWord, sentMessage->word[0]) == 1){
-                        printf("Acertou.\n");
-                        printf("Palavra: \n%s\n", secret_word);
-                        if(end_game()==1){
-                           printf("Ganhou!\n");
-                           isPlaying = 0;
-                           sentMessage->opt = 4;
-                        }else if(end_game()==2){
-                           printf("Perdeu!\n");
-                           isPlaying = 1;
+                    if (strlen(sentMessage->word) == 1 && verify_char(sentMessage->word[0])){
+                        sentMessage->word[0] = standard_char(sentMessage->word[0]); //deixa minusculo
+                        if (check_letter(guessedWord, sentMessage->word[0]) == 1){
+                            printf("Acertou.\n");
+                            printf("Palavra: \n%s\n", secret_word);
                         }
-                    }
-                    else{
-                        printf("Se deu mal\n");
-                        printf("Letras erradas: %s\n", wrong_letter);
-                        printf("Palavra: \n%s\n", secret_word);
-                    }
-                    printf("Você ainda pode errar %d vezes.\n",7-tries);
-                    printf("%s> ", username);
-                }else{
-                    if(gameOwner == 1 && strncmp(sendBuffer + sizeof(struct messageInfo), "/guess", 6) == 0)
-                        printf("Quem manda palavra nao joga\n");
-                    else{
-                        sentMessage->opt = 2; //envia mensagem para o servidor
+                        else{
+                            printf("Se deu mal\n");
+                            printf("Letras erradas: %s\n", wrong_letter);
+                            printf("Palavra: \n%s\n", secret_word);
+                        }
+                        if(end_game()==1){
+                            printf("Ganhou!\n");
+                            isPlaying = 0;
+                            sentMessage->opt = 4;
+                        }else if(end_game()==2){
+                            printf("Perdeu!\n");
+                            isPlaying = 1;
+                        }else
+                            printf("Você ainda pode errar %d vezes.\n",7-tries);
+                        printf("%s> ", username);
+                    }else{
+                        if(gameOwner == 1 && strncmp(sendBuffer + sizeof(struct messageInfo), "/guess", 6) == 0)
+                            printf("Quem manda palavra nao joga\n");
+                        else if (strlen(sentMessage->word)-7 != 1){
+                            printf("Digitou um teste invalido.\n");
+                        }else{
+                            sentMessage->opt = 2; //envia mensagem para o servidor
+                        }
                         printf("%s> ", username);
                     }
+                }
+                else{
+                    sentMessage->opt = 2; //envia mensagem para o servidor
+                    printf("%s> ", username);
                 }
             }
         }
