@@ -14,9 +14,9 @@
 #define USERNAME_BUFFER 10
 #define PORT 3024
 
-char sendBuffer[MESSAGE_BUFFER];
-char receiveBuffer[MESSAGE_BUFFER];
-char username[USERNAME_BUFFER];
+char sendBuffer[MESSAGE_BUFFER]; //buffer de envio de mensagens
+char receiveBuffer[MESSAGE_BUFFER]; //buffer de recebimento de mensagens
+char username[USERNAME_BUFFER]; //nome de usuario
 
 struct messageInfo{
     int fd; //descritor de socket
@@ -149,15 +149,22 @@ void *receive(void *msg){
 int main(){
     int port;
     struct sockaddr_in address, cl_addr;
-    char * server_address;
+    char *server_address;
     int response;
     pthread_t thread;
 
-    port = PORT;
+    port = PORT; //numero da porta
     address.sin_family = AF_INET; //familia de endereços
-    address.sin_port = htons(port); //porta em que o servidor "escutará" as conexões
+    address.sin_port = htons(port); //define porta em que o cliente conectará
     address.sin_addr.s_addr = INADDR_ANY; //indica que vai atender todas as requisições para a porta especificada
     socket_fd = socket(PF_INET, SOCK_STREAM, 0); //cria o socket
+
+    //verifica se o socket foi criado com sucesso
+    if(socket_fd == -1){
+        printf("Erro: %s.\n", strerror(errno));
+        atexit(checkEnd);
+        exit(1);
+    }
 
     //Obtem nome de usuario
     do{
@@ -199,27 +206,28 @@ int main(){
             printf("%s> ", username);
         }
         else if(receivedMessage->opt == 2){
+            //indica que o cliente receberá mensagem e a exibirá
             printf("\n%s> %s", receivedMessage->user, receiveBuffer+sizeof(struct messageInfo));
             printf("%s> ", username);
         }
         else if(receivedMessage->opt == 3){
+            //indica que uma partida será iniciada
             printf("\nChamada para jogar forca, é isso, vai ter que jogar!\n");
-            //inicia a forca
-            strcpy(guessedWord, receivedMessage->word);
-            create_secret(strlen(receivedMessage->word));
+            strcpy(guessedWord, receivedMessage->word); //copia palavra para palavra a ser adivinhada
+            create_secret(strlen(receivedMessage->word)); //cria palavra secreta com base na outra
             printf("%s\n", secret_word);
             printf("%s> ", username);
-            isPlaying = 1;
+            isPlaying = 1; //indica que ta jogando
         }else{
             printf("Acabou o jogo\n");
-            isPlaying = 0;
-            gameOwner = 0;
+            isPlaying = 0; //indica que nao ta jogando
+            gameOwner = 0; //indica que nao é o dono da partida
         }
         fflush(stdout);
     }
-    // Fecha o socket e mata a thread
-    pthread_exit(&thread);
+    //Fecha o socket e mata a thread
     atexit(checkEnd);
+    pthread_exit(&thread);
 
     return 0;
 }
