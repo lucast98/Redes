@@ -1,3 +1,5 @@
+//Executar com o seguinte comando: ./server PORT
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,7 +14,7 @@
 
 #define MESSAGE_BUFFER 500
 #define USERNAME_BUFFER 10
-#define PORT 3024
+//#define PORT 3024
 
 struct messageInfo{
     int fd; //descritor de socket
@@ -77,13 +79,13 @@ void *receive(void *arg){
     return NULL;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     int port, clientFD; //numero da porta e descritor do cliente
     struct sockaddr_in address, cl_addr; //endereço associado ao socket e endereço do cliente
     socklen_t length; //tamanho do socket
     pthread_t thread; //thread do servidor
 
-    port = PORT; //numero da porta
+    port = atoi(argv[1]); //numero da porta
     address.sin_family = AF_INET; //familia de endereços
     address.sin_port = htons(port); //define porta em que o servidor "escutará" as conexões
     address.sin_addr.s_addr = INADDR_ANY; //indica que vai atender todas as requisições para a porta especificada
