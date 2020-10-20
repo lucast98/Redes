@@ -1,3 +1,5 @@
+//Executar com o seguinte comando: ./server PORT
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,23 +14,22 @@
 
 #define MESSAGE_BUFFER 500
 #define USERNAME_BUFFER 10
-#define PORT 3024
+//#define PORT 3024
 
 struct messageInfo{
-    int fd;  //descritor de socket
+    int fd; //descritor de socket
     char user[USERNAME_BUFFER]; //nome de usuario
     char word[MAX_WORD]; //palavra da forca
-    int opt;  // 0 = entrou no chat, 1 = saiu do chat, 2 = enviar mensagem e 3 = jogar
-    int onLineNum;  //qtd de usuarios online
+    int opt; //0 = entrou no chat, 1 = saiu do chat, 2 = enviar mensagem e 3 = jogar
+    int onLineNum; //qtd de usuarios online
 };
 
 struct messageInfo *sendMsg, *receiveMsg;
 int qtdOn = 0; //quantidade de usuarios online no servidor
 int socket_fd; //descritor do socket
-int clients[10];
-char sendBuffer[MESSAGE_BUFFER];
-char receiveBuffer[MESSAGE_BUFFER];
-
+int clients[10]; //lista dos clientes conectados
+char sendBuffer[MESSAGE_BUFFER]; //buffer de envio de mensagens
+char receiveBuffer[MESSAGE_BUFFER]; //buffer de recebimento de mensagens
 
 /** Função a ser chamada antes de um exit, que fechará o socket */
 void checkEnd(){
@@ -38,13 +39,12 @@ void checkEnd(){
 /** Função para enviar a mensagem para os demais clientes */
 void messageClient(char *buffer, int fd){
     for(int i = 0; i < qtdOn; i++){
-        if(clients[i] == fd)
+        if(clients[i] == fd) //verifica se é o mesmo cliente que mandou a mensagem
             continue;
-        if(send(clients[i], buffer, MESSAGE_BUFFER, 0) == -1){
+        if(send(clients[i], buffer, MESSAGE_BUFFER, 0) == -1)
             printf("%s\n", strerror(errno));
-        }
     }
-    bzero(buffer, MESSAGE_BUFFER);
+    bzero(buffer, MESSAGE_BUFFER); //seta os bytes para 0
 }
 
 /** Função que recebe a mensagem do cliente */
@@ -52,68 +52,60 @@ void *receive(void *arg){
     int fd = *(int *)arg; //converte para int
 
     while(1){
-        if(recv(fd, receiveBuffer, MESSAGE_BUFFER, 0) == -1){
+        if(recv(fd, receiveBuffer, MESSAGE_BUFFER, 0) == -1){ //recebe mensagem e verifica se deu erro
             printf("Erro: %s\n", strerror(errno));
             close(fd);
             exit(1);
         }
+
         receiveMsg = (struct messageInfo *)receiveBuffer;
-        receiveMsg->fd = fd;
+        receiveMsg->fd = fd; //descritor de socket
+        
         if(receiveMsg->opt == 1){
-            qtdOn--;
+            //indica que cliente desconectou do servidor
+            qtdOn--; //decrementa quantidade de pessoas online
             receiveMsg->onLineNum = qtdOn;
             printf("Usuario com ID %d desconectou.\n", fd);
-            messageClient(receiveBuffer, fd);
+            messageClient(receiveBuffer, fd); //envia mensagem aos demais clientes
             close(fd);
-            /*if(qtdOn == 0){
-                atexit(checkEnd);
-                exit(1);
-            }*/
             return NULL;
         }
-        else if (receiveMsg->opt == 2){
+        else if (receiveMsg->opt == 2 || receiveMsg->opt == 3 || receiveMsg->opt == 4){
             //Manda mensagem para os outros clientes
-            messageClient(receiveBuffer, fd);
+            messageClient(receiveBuffer, fd); //manda mensagem aos clientes
         }
-        else if (receiveMsg->opt == 3){
-            messageClient(receiveBuffer, fd);
-        }
-        else if (receiveMsg->opt == 4){
-            messageClient(receiveBuffer, fd);
-        }
-
     }
     close(fd);
     return NULL;
 }
 
-int main() {
-    int port, clientFD;
-    struct sockaddr_in address, cl_addr;
+int main(int argc, char *argv[]) {
+    int port, clientFD; //numero da porta e descritor do cliente
+    struct sockaddr_in address, cl_addr; //endereço associado ao socket e endereço do cliente
     socklen_t length; //tamanho do socket
     pthread_t thread; //thread do servidor
 
-    socket_fd = socket(PF_INET, SOCK_STREAM, 0);
+    port = atoi(argv[1]); //numero da porta
+    address.sin_family = AF_INET; //familia de endereços
+    address.sin_port = htons(port); //define porta em que o servidor "escutará" as conexões
+    address.sin_addr.s_addr = INADDR_ANY; //indica que vai atender todas as requisições para a porta especificada
+    socket_fd = socket(PF_INET, SOCK_STREAM, 0); //cria o socket
 
-    //verifica se o socket foi criado com sucesso
+    //Verifica se o socket foi criado com sucesso
     if(socket_fd == -1){
         printf("Erro: %s.\n", strerror(errno));
         atexit(checkEnd);
         exit(1);
     }
-    port = PORT;
-    address.sin_family = AF_INET;
-    address.sin_port = htons(port); //Define the port at which the server will listen for connections.
-    address.sin_addr.s_addr = INADDR_ANY;
 
-    //verifica se houve erro no bind
+    //Verifica se houve erro no bind
     if(bind(socket_fd, (struct sockaddr*)&address, sizeof(struct sockaddr_in)) == -1){
         printf("Erro - Bind: %s.\n", strerror(errno));
         atexit(checkEnd);
         exit(1);
     }
 
-    //verifica se houve erro no listen
+    //Verifica se houve erro no listen
     if(listen(socket_fd, 100) == -1){
         printf("Erro - Listen: %s\n.", strerror(errno));
         atexit(checkEnd);
@@ -124,25 +116,27 @@ int main() {
     printf("Esperando...\n");
 
     while(1){
+        //Verifica se o cliente foi aceito no servidor
         if((clientFD = accept(socket_fd, (struct sockaddr *)&cl_addr, &length)) == 0){
             printf("Erro - Accept: %s\n", strerror(errno));
             continue;
         }
         else if (clientFD == -1){
+            //Verifica se o cliente é invalido
             printf("Erro - FD: %s\n", strerror(errno));
             atexit(checkEnd);
             exit(1);
         }
 
         clients[qtdOn] = clientFD; //armazena o descritor de socket num vetor
-        qtdOn++;
-        //printf("%d\n", qtdOn);
+        qtdOn++; //incrementa quantidade de clientes online
         printf("Cliente com socket %d esta conectado!\n", clientFD);
 
+        //Mensagem a ser enviada
         sendMsg = (struct messageInfo *)sendBuffer; 
-        sendMsg->fd = clientFD;
-        sendMsg->opt = 0;
-        sendMsg->onLineNum = qtdOn;
+        sendMsg->fd = clientFD; //envia descritor do cliente
+        sendMsg->opt = 0; //envia que opção que indica que o cliente está conectado
+        sendMsg->onLineNum = qtdOn; //envia qtd de clientes online
 
         //Avisa todos no servidor que um novo usario está conectado
         for(int i = 0; i < qtdOn; i++){
@@ -159,6 +153,7 @@ int main() {
         }
     }
     atexit(checkEnd);
-    
+    pthread_exit(&thread);
+
     return 0;
 }
