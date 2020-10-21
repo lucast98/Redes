@@ -1,5 +1,5 @@
 Redes de Computadores
-Trabalho 1 - Jogo 'Forca' multi-jogadores
+Trabalho 1 - Chat e Jogo 'Forca' multi-jogadores
 
 Nomes:                      nº USP:
 Higor Tessari               - 10345251
